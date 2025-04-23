@@ -113,4 +113,5 @@ EOF
         sleep 15
         
         # Check if API is responding
+        # and if it is working
         ssh ${{ secrets.EC2_USERNAME }}@${{ secrets.EC2_HOST }} "curl -s http://localhost:8000/ || echo 'Health check failed'"
