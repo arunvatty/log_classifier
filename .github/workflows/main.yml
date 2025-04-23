@@ -73,19 +73,18 @@ jobs:
     
     - name: Deploy to EC2
       run: |
-        # Connect to EC2 and deploy the container
-        ssh ${{ secrets.EC2_USERNAME }}@${{ secrets.EC2_HOST }} << 'EOF'
+        ssh ${{ secrets.EC2_USERNAME }}@${{ secrets.EC2_HOST }} "
           # Install Docker if not installed
           if ! command -v docker &> /dev/null; then
             sudo apt-get update
             sudo apt-get install -y docker.io
             sudo systemctl start docker
             sudo systemctl enable docker
-            sudo usermod -aG docker $USER
+            sudo usermod -aG docker \$USER
           fi
           
           # Login to Docker Hub
-          echo "${{ secrets.DOCKER_HUB_TOKEN }}" | sudo docker login -u "${{ secrets.DOCKER_HUB_USERNAME }}" --password-stdin
+          echo \"${{ secrets.DOCKER_HUB_TOKEN }}\" | sudo docker login -u \"${{ secrets.DOCKER_HUB_USERNAME }}\" --password-stdin
           
           # Pull the latest image
           sudo docker pull ${{ secrets.DOCKER_HUB_USERNAME }}/log-classifier:latest
@@ -97,15 +96,15 @@ jobs:
           fi
           
           # Run the new container
-          sudo docker run -d \
-            --name log-classifier \
-            -p 8000:8000 \
-            --restart unless-stopped \
+          sudo docker run -d \\
+            --name log-classifier \\
+            -p 8000:8000 \\
+            --restart unless-stopped \\
             ${{ secrets.DOCKER_HUB_USERNAME }}/log-classifier:latest
           
           # Verify deployment
-          echo "Container is running: $(sudo docker ps | grep log-classifier)"
-EOF
+          echo \"Container is running: \$(sudo docker ps | grep log-classifier)\"
+        "
     
     - name: Health check
       run: |
@@ -113,5 +112,4 @@ EOF
         sleep 15
         
         # Check if API is responding
-        # and if it is working
         ssh ${{ secrets.EC2_USERNAME }}@${{ secrets.EC2_HOST }} "curl -s http://localhost:8000/ || echo 'Health check failed'"
