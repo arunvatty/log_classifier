@@ -22,7 +22,7 @@ def test_imports():
 @need_model_files
 def test_model_load():
     """Test that the model can be loaded"""
-    from simple_train import LSTMClassifier  # Update this import to your model class
+    from train_model import LSTMClassifier  # Update this import to your model class
     
     # Load vocabulary
     vocab = joblib.load("model/tokenizer.pkl")
