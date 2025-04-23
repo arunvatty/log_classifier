@@ -57,11 +57,6 @@ jobs:
         tags: ${{ secrets.DOCKER_HUB_USERNAME }}/log-classifier:latest,${{ secrets.DOCKER_HUB_USERNAME }}/log-classifier:${{ github.sha }}
         cache-from: type=registry,ref=${{ secrets.DOCKER_HUB_USERNAME }}/log-classifier:buildcache
         cache-to: type=registry,ref=${{ secrets.DOCKER_HUB_USERNAME }}/log-classifier:buildcache,mode=max
-    
-    # Save the image tag for use in the deployment job
-    - name: Set output
-      id: vars
-      run: echo "tag=${{ github.sha }}" >> $GITHUB_OUTPUT
 
   deploy-to-ec2:
     needs: build-and-push
@@ -90,7 +85,7 @@ jobs:
           fi
           
           # Login to Docker Hub
-          echo ${{ secrets.DOCKER_HUB_TOKEN }} | sudo docker login -u ${{ secrets.DOCKER_HUB_USERNAME }} --password-stdin
+          echo "${{ secrets.DOCKER_HUB_TOKEN }}" | sudo docker login -u "${{ secrets.DOCKER_HUB_USERNAME }}" --password-stdin
           
           # Pull the latest image
           sudo docker pull ${{ secrets.DOCKER_HUB_USERNAME }}/log-classifier:latest
@@ -110,7 +105,7 @@ jobs:
           
           # Verify deployment
           echo "Container is running: $(sudo docker ps | grep log-classifier)"
-        EOF
+EOF
     
     - name: Health check
       run: |
@@ -119,26 +114,3 @@ jobs:
         
         # Check if API is responding
         ssh ${{ secrets.EC2_USERNAME }}@${{ secrets.EC2_HOST }} "curl -s http://localhost:8000/ || echo 'Health check failed'"
-        
-    - name: Configure AWS credentials (for API Gateway)
-      if: ${{ secrets.AWS_API_GATEWAY_ENABLED == 'true' }}
-      uses: aws-actions/configure-aws-credentials@v2
-      with:
-        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-        aws-region: ${{ secrets.AWS_REGION }}
-    
-    - name: Update API Gateway
-      if: ${{ secrets.AWS_API_GATEWAY_ENABLED == 'true' }}
-      run: |
-        # Get the current EC2 public IP
-        EC2_IP=$(ssh ${{ secrets.EC2_USERNAME }}@${{ secrets.EC2_HOST }} "curl -s http://169.254.169.254/latest/meta-data/public-ipv4")
-        
-        # Update API Gateway integration URL
-        aws apigatewayv2 update-integration \
-          --api-id ${{ secrets.API_GATEWAY_ID }} \
-          --integration-id ${{ secrets.API_GATEWAY_INTEGRATION_ID }} \
-          --integration-uri http://${EC2_IP}:8000 \
-          --timeout-in-millis 30000
-          
-        echo "Updated API Gateway integration to point to ${EC2_IP}:8000"
