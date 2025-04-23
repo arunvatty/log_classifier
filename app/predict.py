@@ -10,6 +10,12 @@ from train.train_model import LSTMClassifier  # Import your model class
 # Make sure necessary NLTK packages are downloaded
 nltk.download("punkt", quiet=True)
 
+# Important keywords that should always trigger "Important" classification
+IMPORTANT_KEYWORDS = [
+    'error', 'fail', 'exception', 'critical', 'crash', 
+    'anr', 'not responding', 'fatal', 'unhandled'
+]
+
 def clean_log(log):
     """Clean log text by removing timestamps and non-alphabetic characters"""
     log = re.sub(r"\d{2}-\d{2} \d{2}:\d{2}:\d{2}\.\d+", "", log)  # Remove timestamps
@@ -32,7 +38,7 @@ def tokenize_and_encode(log_text, vocab, max_len=50):
     # Pad sequence
     padded_ids = token_ids + [pad_idx] * (max_len - len(token_ids))
     
-    return padded_ids
+    return padded_ids, cleaned_log, tokens
 
 def load_model():
     """Load the trained model and vocabulary"""
@@ -56,9 +62,20 @@ def predict(log_text, model=None, vocab=None):
         model, vocab = load_model()
     
     # Tokenize and encode the input log
-    encoded_log = tokenize_and_encode(log_text, vocab)
+    encoded_log, cleaned_log, tokens = tokenize_and_encode(log_text, vocab)
     
-    # Convert to tensor
+    # Check for important keywords first (override model for critical issues)
+    log_lower = log_text.lower()
+    for keyword in IMPORTANT_KEYWORDS:
+        if keyword in log_lower:
+            return {
+                "prediction": "Important",
+                "probability": 0.95,  # High confidence for keyword match
+                "encoded_length": len(tokens),
+                "method": "keyword_override"
+            }
+    
+    # Get model prediction
     input_tensor = torch.tensor([encoded_log], dtype=torch.long)
     
     # Get prediction
@@ -70,7 +87,8 @@ def predict(log_text, model=None, vocab=None):
     return {
         "prediction": "Important" if prediction == 1 else "Normal",
         "probability": probability,
-        "encoded_length": sum(1 for id in encoded_log if id != 0)  # Count non-padding tokens
+        "encoded_length": sum(1 for id in encoded_log if id != 0),  # Count non-padding tokens
+        "method": "model_prediction"
     }
 
 def predict_batch(log_texts):
