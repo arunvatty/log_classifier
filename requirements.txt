@@ -8,4 +8,4 @@ pandas
 nltk
 joblib
 matplotlib
-scikit-learn
+httpx
